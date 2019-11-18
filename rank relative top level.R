@@ -1,3 +1,7 @@
+# Not currently working. Needs updating getting species ids - table mg_constants
+# doesn't exist any more. Use q <- sprintf('SELECT * FROM meadows.mg_standards6;').
+# Probably other inconsistencies too.
+
 # Libraries
 library("RMySQL")
 library(tidyverse)
