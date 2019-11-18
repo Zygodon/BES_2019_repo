@@ -3,10 +3,10 @@ title: "Notebook"
 author: "John"
 date: "09/11/2019"
 output:
+  # word_document: default
+  # pdf_document: default
   html_document:
     keep_md: yes
-  # pdf_document: default
-  # word_document: default
 editor_options:
   chunk_output_type: console
 ---
@@ -17,13 +17,40 @@ First candidate for tidying: nvc baplot.R
 
 nvc barplot
 
-```{r}
+
+```r
 # Libraries
 library("RMySQL")
+```
+
+```
+## Loading required package: DBI
+```
+
+```r
 library("RColorBrewer")
 library(ggplot2)
 library(dplyr)
+```
 
+```
+## 
+## Attaching package: 'dplyr'
+```
+
+```
+## The following objects are masked from 'package:stats':
+## 
+##     filter, lag
+```
+
+```
+## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union
+```
+
+```r
 # Functions
 dbDisconnectAll <- function(){
   ile <- length(dbListConnections(MySQL())  )
@@ -42,7 +69,17 @@ mydb = dbConnect(MySQL(), user='root', password='Mysql130641', dbname='meadows',
 rs1 = dbSendQuery(mydb, "select nvc from assemblies where nvc is not null and nvc != major_nvc_community;")
 data <- fetch(rs1, n=-1)
 dbDisconnectAll()
+```
 
+```
+## Warning: Closing open result sets
+```
+
+```
+## 1 connection(s) closed.
+```
+
+```r
 # Tibble g: hand coded analysis groups - nvc with few samples grouped e.g. MG10.
 # Also mires grouped - will be excluded from this analysis.
 g <- tibble(grp= c(rep("M", 7), rep("MG10", 2), rep("MG1", 3), "MG5a", "MG5c", "MG6a", "MG6b", rep("MG7", 3), "MG9a"))
@@ -61,16 +98,36 @@ bp1 <- ggplot(d, aes(x=nvc, fill=grp)) +
   coord_flip() +
   labs(x = "assessed NVC", fill = "analysis group")
 print(bp1)
-
 ```
+
+![](Notebook_files/figure-html/unnamed-chunk-1-1.png)<!-- -->
 Moving on to prox. This code gets sample and standard vectors in 22 dimensional species frequency space. The sample frequencies calculated from the raw DB data.
 Results visualised as bubble plot, nearest standard frequency vs distance to MG5 for each sample; samples coloured according to assessed nvc (lover case, e.g. "mg5a").
 
-```{r}
+
+```r
 # Libraries
 library("RMySQL")
 library(tidyverse)
+```
 
+```
+## -- Attaching packages ------------------------------------------ tidyverse 1.2.1 --
+```
+
+```
+## v tibble  2.1.3     v purrr   0.3.2
+## v tidyr   1.0.0     v stringr 1.4.0
+## v readr   1.3.1     v forcats 0.4.0
+```
+
+```
+## -- Conflicts --------------------------------------------- tidyverse_conflicts() --
+## x dplyr::filter() masks stats::filter()
+## x dplyr::lag()    masks stats::lag()
+```
+
+```r
 # Functions
 dbDisconnectAll <- function(){
   ile <- length(dbListConnections(MySQL())  )
@@ -102,6 +159,44 @@ con = dbConnect(MySQL(), user='root', password='Mysql130641', dbname='meadows', 
 # Get nvc standard frequencies
 q <- sprintf('SELECT * FROM meadows.mg_standards6;')
 rs1 = dbSendQuery(con, q)
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 2 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 3 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 4 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 5 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 6 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 7 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 8 imported as
+## numeric
+```
+
+```r
 stdFreqs <- fetch(rs1, n=-1) 
 # Make string of species names to use in selecting species hits
 s <- toString(stdFreqs %>% select(species))
@@ -209,7 +304,17 @@ assembly_hits <- species_hits %>% group_by(assemblies_id, community, species) %>
 
 # Close the DB connection
 dbDisconnectAll()
+```
 
+```
+## Warning: Closing open result sets
+```
+
+```
+## 1 connection(s) closed.
+```
+
+```r
 # Ensure species not represented in a community get 0 hits
 wide <- spread(assembly_hits, key=species, value=hits) # Coerces NAs
 wide[is.na(wide)] <- 0 # Replaces NAs with 0
@@ -241,6 +346,14 @@ for (i in 1:length(assembly_trials$assemblies_id)) {
   output[i,] <- t
 }
 eds <- as_tibble(output)
+```
+
+```
+## Warning: `as_tibble.matrix()` requires a matrix with column names or a `.name_repair` argument. Using compatibility `.name_repair`.
+## This warning is displayed once per session.
+```
+
+```r
 colnames(eds) <- colnames(stdFreqs)[3:9]
 eds$community <- tolower(assembly_trials$community)
 eds$assemblies_id <- assembly_trials$assemblies_id
@@ -277,13 +390,15 @@ g <- ggplot(data = prox1, aes(x = px1, y = d5, colour = community, size = exp(n)
   guides(color = guide_legend(override.aes = list(size=5))) +
   theme_grey()
 print(g)
-
 ```
+
+![](Notebook_files/figure-html/unnamed-chunk-2-1.png)<!-- -->
 Moving on to the confusion plot Figure 5 in poster.
 This is essentially the same code as prox8, just copied and pasted over. Then followed
 by code to make the base plot figure 3 and the final confusion plot.
 
-```{r}
+
+```r
 # Libraries
 library("RMySQL")
 library(tidyverse)
@@ -317,6 +432,44 @@ mydb = dbConnect(MySQL(), user='root', password='Mysql130641', dbname='meadows',
 # Get nvc standard frequencies
 q <- sprintf('SELECT * FROM meadows.mg_standards6;')
 rs1 = dbSendQuery(mydb, q)
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 2 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 3 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 4 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 5 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 6 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 7 imported as
+## numeric
+```
+
+```
+## Warning in .local(conn, statement, ...): Decimal MySQL column 8 imported as
+## numeric
+```
+
+```r
 stdFreqs <- fetch(rs1, n=-1) 
 # Make string of species names to use in selecting species hits
 s <- toString(stdFreqs %>% select(species))
@@ -424,7 +577,17 @@ assembly_hits <- species_hits %>% group_by(assemblies_id, community, species) %>
 
 # Close the DB connection
 dbDisconnectAll()
+```
 
+```
+## Warning: Closing open result sets
+```
+
+```
+## 1 connection(s) closed.
+```
+
+```r
 # Ensure species not represented in a community get 0 hits
 wide <- spread(assembly_hits, key=species, value=hits) # Coerces NAs
 wide[is.na(wide)] <- 0 # Replaces NAs with 0
@@ -511,7 +674,11 @@ g3 <- ggplot(data=ref, aes(x=x, y=y)) +
   geom_text(aes(label=lab),hjust=0.5, vjust=0, size=5, colour="white") +
   theme_void() #+ theme(legend.position="none")
 print(g3)
+```
 
+![](Notebook_files/figure-html/unnamed-chunk-3-1.png)<!-- -->
+
+```r
 ## Confusion matrix. Clever, eh?
 crosstab1 <- (prox %>%
                 group_by(px, community)%>%
@@ -535,7 +702,21 @@ gf <- gf %>% mutate(lab = colnames(gf))
 
 # Make expected values
 chi2 <- chisq.test(m2)
+```
+
+```
+## Warning in chisq.test(m2): Chi-squared approximation may be incorrect
+```
+
+```r
 chi1 <- chisq.test(m1)
+```
+
+```
+## Warning in chisq.test(m1): Chi-squared approximation may be incorrect
+```
+
+```r
 corr2 <- chi2$observed/chi2$expected
 corr1 <- chi1$observed/chi1$expected
 xflow <- corr2 + corr1 # expected flow/confusion. Use to select which links to draw
@@ -584,6 +765,7 @@ g5 <- ggplot(data=flows, aes(x = x, y = y, xend = xend, yend = yend, size=gross_
   scale_size(guide = 'none') +
   theme_void() + theme(legend.position="bottom", legend.box = "horizontal") 
 print(g5)
-
 ```
+
+![](Notebook_files/figure-html/unnamed-chunk-3-2.png)<!-- -->
 

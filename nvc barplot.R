@@ -15,10 +15,8 @@ dbDisconnectAll <- function(){
 
 # GET DATA FROM DB
 # Open connection to meadows data base to get the data
-# My local DB
-#mydb = dbConnect(MySQL(), user='root', password='Mysql130641', dbname='meadows', host='127.0.0.1')
 # Remote DB
-mydb = dbConnect(MySQL(), user='guest', dbname='meadows', port = 3306, host='sxouse.ddns.net')
+mydb = dbConnect(MySQL(), user='guest', password = 'guest', dbname='meadows', port = 3306, host='sxouse.ddns.net')
 rs1 = dbSendQuery(mydb, "select nvc from assemblies where nvc is not null and nvc != major_nvc_community;")
 data <- fetch(rs1, n=-1)
 dbDisconnectAll()
