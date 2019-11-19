@@ -244,6 +244,121 @@ g <- ggplot(data = prox1, aes(x = px1, y = d5, colour = community, size = exp(n)
   theme_grey()
 print(g)
 
+# Confusion plot ----------------------------------------------------------
+
+# Node coodinates for confusion plot and base diagram
+nodes <- tibble(
+  n = 0:6, 
+  x = cos(n*0.897),
+  y = sin(n*0.897)
+)
+# Determines order of nodes
+nodes <- nodes %>%  mutate(lab=c("MG6b", "MG6a", "MG7", "MG10", "MG1", "MG5c", "MG5a"))
+
+## Confusion matrix. Clever, eh?
+crosstab1 <- (prox %>%
+                group_by(px, community)%>%
+                summarise(n=n())%>%
+                spread(community, n))
+
+crosstab2 <- (prox %>%
+                group_by(community, px)%>%
+                summarise(n=n())%>%
+                spread(px, n))
+
+ct2 <- crosstab2 %>% replace(is.na(.), 0)
+ct1 <- crosstab1 %>% replace(is.na(.), 0)
+m1 <- as.matrix(ct1[,2:8])
+m2 <- as.matrix(ct2[,2:8])
+gross_flow <- m2 + m1 # or m2 + t(m2)
+
+gf <- as_tibble(gross_flow)
+standard <- rep(colnames(gf),7)
+gf <- gf %>% mutate(lab = colnames(gf))
+
+# Make expected values
+chi2 <- chisq.test(m2)
+chi1 <- chisq.test(m1)
+corr2 <- chi2$observed/chi2$expected
+corr1 <- chi1$observed/chi1$expected
+xflow <- corr2 + corr1 # expected flow/confusion. Use to select which links to draw
+xf <- as_tibble(xflow)
+xf <- xf %>% mutate(lab = colnames(xf))
+# Make the xf matrix long and add community  names 
+xf_long <-  xf %>% gather(MG1:MG7, key="lab", value="xratio") %>% mutate(standard = standard)
+
+nodes2 <- nodes %>% rename(standard = lab)
+
+# Make the gf matrix long and add community names
+gf_long <-  gf %>% gather(MG1:MG7, key="lab", value="gross") %>% mutate(standard = standard)
+# FULL join gf_long with nodes - "lab" - gives slow changing "row" names
+flows <- full_join(gf_long, nodes, by = "lab") %>% select(-n)
+# joining with nodes2 "standard" gives fast changing "column" names
+flows <-left_join(flows, nodes2, by="standard") %>% select(-n)
+flows <- flows %>% rename(x=x.x) %>% rename(y=y.x) %>% rename(xend=x.y) %>% rename(yend=y.y)
+# Join in the obs/expected ratios, xratio.
+flows <- left_join(flows, xf_long, by = c("lab", "standard"))
+
+# Filter unwanted values: only include cross-tabs, reject xratio < 1. NOTE actually > 0.8 because
+# Chisquare.test calculations of expected figures are not integer.
+flows <- flows %>% filter(lab != standard) %>% filter(xratio>0.8)
+comm_counts <- species_hits %>% group_by(community) %>% 
+  summarise(count = n_distinct(assemblies_id)) %>%  ungroup() %>% rename(lab=community)
+flows <- left_join(flows, comm_counts, by="lab") %>% rename(count_lab=count)
+
+comm_counts <- rename(comm_counts, standard=lab)
+flows <- left_join(flows, comm_counts, by="standard") %>% rename(count_std=count)
+flows <-  flows %>% mutate(pool = count_lab + count_std) %>% mutate(gross_rel = 100*gross/pool)
+
+# Confusion plot
 
 
+g5 <- ggplot(data=flows, aes(x = x, y = y, xend = xend, yend = yend, size=gross_rel, colour=gross_rel)) +
+  ylim(-1.5, 1.5) + xlim(-1.5, 1.5) +
+  scale_colour_gradient(low = "grey99",high = "green2") +
+  coord_fixed() +
+  geom_segment() +
+  geom_point(aes(fill=lab), shape = 21, size = 22, show.legend = F) +
+  scale_fill_brewer(palette="Set1") +
+  geom_text(aes(label=tolower(lab)),hjust=0.5, vjust=-0.6, size=5, colour="black") +
+  geom_text(aes(label=count_lab),hjust=0.5, vjust=1, size=5, colour="black") +
+  labs(colour = " exchanges\n% pool", size = "") +
+  # Suppress the size legend, retaining only the colour legend
+  scale_size(guide = 'none') +
+  theme_void() + theme(legend.position="bottom", legend.box = "horizontal") 
+print(g5)
+
+
+# Create base diagram (expected transitional stages, after Rodwell) -------
+
+
+# Determines order of nodes
+nodes <- nodes %>%  mutate(lab=c("MG6b", "MG6a", "MG7", "MG10", "MG1", "MG5c", "MG5a"))
+
+# Set which nodes are linked
+start <- c("MG5a", "MG5a", "MG5a", "MG6b", "MG6b", "MG6a", "MG7", "MG6a")
+end <- c("MG1", "MG5c", "MG6b", "MG10", "MG6a", "MG7", "MG6a", "MG10")
+links <- tibble(start = start, end = end, x=0, y=0, xend=0, yend=0)
+# links <- links %>% mutate(labs = c("neglect", "acid", "", "waterlogging", "", "seeding", "", "waterlogging"))
+
+for (i in 1:length(start)){
+  t <- nodes %>% filter(lab==start[i])
+  links$x[i] <- t$x
+  links$y[i] <- t$y
+  t <- nodes %>% filter(lab==end[i])
+  links$xend[i] <- t$x
+  links$yend[i] <- t$y
+}
+
+# Base diagram plot
+g3 <- ggplot(data=nodes, aes(x=x, y=y)) + 
+  ylim(-1.5, 1.5) + xlim(-1.5, 1.5) +
+  coord_fixed() +
+  geom_segment(data=links, aes(x = links$x, y = links$y, xend = links$xend, yend = links$yend), 
+               size=6, colour="green2") +
+  geom_point(shape = 16, colour = "grey50", size = 25) +
+  # shapes16, 21
+  geom_text(aes(label=lab),hjust=0.5, vjust=0, size=5, colour="white") +
+  theme_void() #+ theme(legend.position="none")
+print(g3)
 
