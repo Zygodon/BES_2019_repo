@@ -1,6 +1,0 @@
-# get species counts for each community
-species_hits %>% group_by(assemblies_id, community) %>% tally() %>% ungroup()
-
-# count number of assemblies of each community
-species_hits %>% group_by(community) %>% 
-  summarise(count = n_distinct(assemblies_id)) %>%  ungroup()
